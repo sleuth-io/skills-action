@@ -1,0 +1,148 @@
+name: 'Install Skills'
+description: 'Install sx CLI and sync skills from Skills.new'
+author: 'Sleuth'
+branding:
+  icon: 'download-cloud'
+  color: 'purple'
+
+inputs:
+  api-key:
+    description: 'Skills.new API key'
+    required: true
+  clients:
+    description: 'LLM clients to install skills for (comma-separated, e.g., claude-code, cursor)'
+    required: true
+  sx-version:
+    description: 'sx CLI version to install (e.g., v0.14.1). Minimum v0.14.1 required.'
+    required: false
+    default: 'v0.14.1'
+
+outputs:
+  skills:
+    description: 'Comma-separated list of installed skill names'
+    value: ${{ steps.discover-skills.outputs.skills }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install sx CLI
+      shell: bash
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v sx &> /dev/null; then
+          echo "sx CLI already installed ($(sx --version)) at $(which sx)"
+          exit 0
+        fi
+
+        echo "Installing sx CLI..."
+
+        # Determine version
+        VERSION="${{ inputs.sx-version }}"
+        if [ -z "$VERSION" ]; then
+          echo "Fetching latest version..."
+          VERSION=$(curl -s https://api.github.com/repos/sleuth-io/sx/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not fetch latest version"
+            exit 1
+          fi
+        fi
+        echo "Version: $VERSION"
+
+        # Detect architecture
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          x86_64) ARCH="x86_64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+          *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+
+        # Download
+        INSTALL_DIR="$HOME/.local/bin"
+        mkdir -p "$INSTALL_DIR"
+        URL="https://github.com/sleuth-io/sx/releases/download/${VERSION}/sx_Linux_${ARCH}.tar.gz"
+        echo "Downloading from $URL..."
+
+        TEMP_DIR=$(mktemp -d)
+        if ! curl -fsSL "$URL" -o "$TEMP_DIR/sx.tar.gz"; then
+          echo "Error: Failed to download sx"
+          rm -rf "$TEMP_DIR"
+          exit 1
+        fi
+
+        # Extract and install
+        tar -xzf "$TEMP_DIR/sx.tar.gz" -C "$TEMP_DIR"
+        chmod +x "$TEMP_DIR/sx"
+        mv "$TEMP_DIR/sx" "$INSTALL_DIR/"
+        rm -rf "$TEMP_DIR"
+
+        # Verify
+        if ! command -v sx &> /dev/null; then
+          echo "Error: sx CLI installation failed - binary not found in PATH"
+          echo "PATH: $PATH"
+          ls -la "$INSTALL_DIR/" 2>/dev/null || echo "(directory does not exist)"
+          exit 1
+        fi
+        echo "sx CLI installed ($(sx --version)) at $(which sx)"
+
+    - name: Configure sx for Skills.new
+      shell: bash
+      run: |
+        CONFIG_FILE="$HOME/.config/sx/config.json"
+        echo "Writing config to $CONFIG_FILE"
+        mkdir -p $HOME/.config/sx
+
+        # Convert comma-separated clients to JSON array
+        INPUT_CLIENTS="${{ inputs.clients }}"
+        CLIENTS_JSON=$(echo "$INPUT_CLIENTS" | tr ',' '\n' | xargs -I{} echo '"{}"' | paste -sd',' | sed 's/^/[/' | sed 's/$/]/')
+        echo "Enabling clients: $CLIENTS_JSON"
+
+        printf '%s\n' "{" \
+          "  \"defaultProfile\": \"default\"," \
+          "  \"profiles\": {" \
+          "    \"default\": {" \
+          "      \"type\": \"sleuth\"," \
+          "      \"repositoryUrl\": \"https://app.skills.new\"," \
+          "      \"authToken\": \"${{ inputs.api-key }}\"" \
+          "    }" \
+          "  }," \
+          "  \"forceEnabledClients\": $CLIENTS_JSON" \
+          "}" > "$CONFIG_FILE"
+        if [ -f "$CONFIG_FILE" ]; then
+          echo "sx configured for Skills.new"
+        else
+          echo "Error: Failed to write config file"
+          exit 1
+        fi
+
+    - name: Sync skills
+      shell: bash
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "Syncing skills from Skills.new..."
+        if ! sx install; then
+          echo "Error: Failed to sync skills"
+          exit 1
+        fi
+        echo "Skills synced successfully"
+
+    - name: Discover installed skills
+      id: discover-skills
+      shell: bash
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "Discovering installed skills..."
+
+        # Get list of installed skills as JSON object
+        # Format: {"skills":[{"name":"skill-a","version":"1.0.0"},...]}}
+        SKILLS_JSON=$(sx list --type=skill --json 2>/dev/null || echo '{"skills":[]}')
+
+        # Extract skill names and convert to comma-separated string
+        SKILLS=$(echo "$SKILLS_JSON" | jq -r '.skills[].name' 2>/dev/null | paste -sd',' -)
+
+        if [ -z "$SKILLS" ] || [ "$SKILLS" = "" ]; then
+          echo "skills=none" >> $GITHUB_OUTPUT
+          echo "No skills found"
+        else
+          echo "skills=$SKILLS" >> $GITHUB_OUTPUT
+          echo "Found skills: $SKILLS"
+        fi
