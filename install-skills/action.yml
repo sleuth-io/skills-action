@@ -96,14 +96,17 @@ runs:
         CLIENTS_JSON=$(echo "$INPUT_CLIENTS" | tr ',' '\n' | xargs -I{} echo '"{}"' | paste -sd',' | sed 's/^/[/' | sed 's/$/]/')
         echo "Enabling clients: $CLIENTS_JSON"
 
-        cat > $CONFIG_FILE << EOF
-{
-  "type": "sleuth",
-  "repositoryUrl": "https://app.skills.new",
-  "authToken": "${{ inputs.api-key }}",
-  "forceEnabledClients": $CLIENTS_JSON
-}
-EOF
+        printf '%s\n' "{" \
+          "  \"defaultProfile\": \"default\"," \
+          "  \"profiles\": {" \
+          "    \"default\": {" \
+          "      \"type\": \"sleuth\"," \
+          "      \"repositoryUrl\": \"https://app.skills.new\"," \
+          "      \"authToken\": \"${{ inputs.api-key }}\"" \
+          "    }" \
+          "  }," \
+          "  \"forceEnabledClients\": $CLIENTS_JSON" \
+          "}" > "$CONFIG_FILE"
         if [ -f "$CONFIG_FILE" ]; then
           echo "sx configured for Skills.new"
         else
