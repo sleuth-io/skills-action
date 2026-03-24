@@ -48,3 +48,47 @@ jobs:
             exit 1
           fi
           ls -la "$SKILLS_DIR"
+
+  test-multiple-clients:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Skills for multiple clients
+        id: install
+        uses: ./install-skills
+        with:
+          api-key: ${{ secrets.SKILLS_API_KEY }}
+          clients: claude-code,cursor
+
+      - name: Verify skill files exist for Claude Code
+        run: |
+          SKILLS_DIR="$HOME/.claude/skills"
+          echo "Checking for skills in $SKILLS_DIR"
+          if [ ! -d "$SKILLS_DIR" ]; then
+            echo "Error: Claude Code skills directory does not exist"
+            exit 1
+          fi
+          SKILL_COUNT=$(find "$SKILLS_DIR" -type f -name "*.md" | wc -l)
+          echo "Found $SKILL_COUNT skill files in Claude Code"
+          if [ "$SKILL_COUNT" -eq 0 ]; then
+            echo "Error: No skill files found for Claude Code"
+            exit 1
+          fi
+          ls -la "$SKILLS_DIR"
+
+      - name: Verify skill files exist for Cursor
+        run: |
+          SKILLS_DIR="$HOME/.cursor/skills"
+          echo "Checking for skills in $SKILLS_DIR"
+          if [ ! -d "$SKILLS_DIR" ]; then
+            echo "Error: Cursor skills directory does not exist"
+            exit 1
+          fi
+          SKILL_COUNT=$(find "$SKILLS_DIR" -type f -name "*.md" | wc -l)
+          echo "Found $SKILL_COUNT skill files in Cursor"
+          if [ "$SKILL_COUNT" -eq 0 ]; then
+            echo "Error: No skill files found for Cursor"
+            exit 1
+          fi
+          ls -la "$SKILLS_DIR"
