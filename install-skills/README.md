@@ -17,7 +17,7 @@ Install the sx CLI and sync skills from [Skills.new](https://skills.new).
 |--------------|----------|----------|------------------------------------------------------|
 | `api-key`    | Yes      | -        | Your Skills.new API key                              |
 | `clients`    | Yes      | -        | LLM clients to install skills for (comma-separated)  |
-| `sx-version` | No       | v0.14.1  | sx CLI version to install (minimum v0.14.1 required) |
+| `sx-version` | No       | v0.14.2  | sx CLI version to install (minimum v0.14.2 required) |
 
 See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
 
@@ -54,7 +54,7 @@ See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code
-    sx-version: v0.14.1
+    sx-version: v0.14.2
 ```
 
 ### Use skills output
