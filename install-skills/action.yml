@@ -13,9 +13,9 @@ inputs:
     description: 'LLM clients to install skills for (comma-separated, e.g., claude-code, cursor)'
     required: true
   sx-version:
-    description: 'sx CLI version to install (e.g., v0.14.1). Minimum v0.14.1 required.'
+    description: 'sx CLI version to install (e.g., v0.14.2). Minimum v0.14.2 required.'
     required: false
-    default: 'v0.14.1'
+    default: 'v0.14.2'
 
 outputs:
   skills:
@@ -134,7 +134,7 @@ runs:
 
         # Get list of installed skills as JSON object
         # Format: {"skills":[{"name":"skill-a","version":"1.0.0"},...]}}
-        SKILLS_JSON=$(sx list --type=skill --json 2>/dev/null || echo '{"skills":[]}')
+        SKILLS_JSON=$(sx vault list --type=skill --json 2>/dev/null || echo '{"skills":[]}')
 
         # Extract skill names and convert to comma-separated string
         SKILLS=$(echo "$SKILLS_JSON" | jq -r '.skills[].name' 2>/dev/null | paste -sd',' -)
