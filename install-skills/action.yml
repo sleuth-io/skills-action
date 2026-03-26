@@ -86,33 +86,43 @@ runs:
 
     - name: Configure sx for Skills.new
       shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
       run: |
         CONFIG_FILE="$HOME/.config/sx/config.json"
         echo "Writing config to $CONFIG_FILE"
         mkdir -p $HOME/.config/sx
 
-        # Convert comma-separated clients to JSON array
-        INPUT_CLIENTS="${{ inputs.clients }}"
-        CLIENTS_JSON=$(echo "$INPUT_CLIENTS" | tr ',' '\n' | xargs -I{} echo '"{}"' | paste -sd',' | sed 's/^/[/' | sed 's/$/]/')
-        echo "Enabling clients: $CLIENTS_JSON"
+        cat > "$CONFIG_FILE" << EOF
+        {
+          "defaultProfile": "default",
+          "profiles": {
+            "default": {
+              "type": "sleuth",
+              "repositoryUrl": "https://app.skills.new",
+              "authToken": "${API_KEY}"
+            }
+          }
+        }
+        EOF
 
-        printf '%s\n' "{" \
-          "  \"defaultProfile\": \"default\"," \
-          "  \"profiles\": {" \
-          "    \"default\": {" \
-          "      \"type\": \"sleuth\"," \
-          "      \"repositoryUrl\": \"https://app.skills.new\"," \
-          "      \"authToken\": \"${{ inputs.api-key }}\"" \
-          "    }" \
-          "  }," \
-          "  \"forceEnabledClients\": $CLIENTS_JSON" \
-          "}" > "$CONFIG_FILE"
         if [ -f "$CONFIG_FILE" ]; then
           echo "sx configured for Skills.new"
         else
           echo "Error: Failed to write config file"
           exit 1
         fi
+
+    - name: Debug config
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
+      run: |
+        echo "Config file contents:"
+        cat "$HOME/.config/sx/config.json"
+        echo ""
+        echo "API key length: ${#API_KEY}"
+        echo "API key prefix: ${API_KEY:0:8}..."
 
     - name: Sync skills
       shell: bash
