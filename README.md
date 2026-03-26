@@ -11,7 +11,7 @@ GitHub Actions for [Skills.new](https://skills.new).
 ## Quick Start
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code
@@ -38,7 +38,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: sleuthio/skills-action/install-skills@v1
+      - uses: sleuth-io/skills-actions/install-skills@v1
         with:
           api-key: ${{ secrets.SKILLS_API_KEY }}
           clients: claude-code
