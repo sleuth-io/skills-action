@@ -5,7 +5,7 @@ Install the sx CLI and sync skills from [Skills.new](https://skills.new).
 ## Usage
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code
@@ -32,7 +32,7 @@ See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
 ### Single client
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code
@@ -41,7 +41,7 @@ See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
 ### Multiple clients
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code,cursor
@@ -50,7 +50,7 @@ See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
 ### Pin sx version
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
     clients: claude-code
@@ -60,7 +60,7 @@ See [sx documentation](https://github.com/sleuth-io/sx) for supported clients.
 ### Use skills output
 
 ```yaml
-- uses: sleuthio/skills-action/install-skills@v1
+- uses: sleuth-io/skills-actions/install-skills@v1
   id: skills
   with:
     api-key: ${{ secrets.SKILLS_API_KEY }}
