@@ -13,9 +13,8 @@ inputs:
     description: 'LLM clients to install skills for (comma-separated, e.g., claude-code, cursor)'
     required: true
   sx-version:
-    description: 'sx CLI version to install (e.g., v0.14.2). Minimum v0.14.2 required.'
+    description: 'sx CLI version to install (e.g., v0.14.2). Defaults to the latest release. Minimum v0.14.2 required.'
     required: false
-    default: 'v0.14.2'
 
 outputs:
   skills:
