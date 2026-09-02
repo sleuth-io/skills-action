@@ -151,13 +151,22 @@ runs:
     - name: Discover installed skills
       id: discover-skills
       shell: bash
+      env:
+        # Listing a git vault reads the repository too, so the same
+        # credentials as the sync step apply here.
+        SX_SSH_KEY: ${{ inputs.ssh-key }}
+        SX_BOT: ${{ inputs.bot }}
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         echo "Discovering installed skills..."
 
         # Get list of installed skills as JSON object
         # Format: {"skills":[{"name":"skill-a","version":"1.0.0"},...]}}
-        SKILLS_JSON=$(sx vault list --type=skill --json 2>/dev/null || echo '{"skills":[]}')
+        if ! SKILLS_JSON=$(sx vault list --type=skill --json 2>/tmp/sx-vault-list.err); then
+          echo "sx vault list failed:"
+          cat /tmp/sx-vault-list.err
+          SKILLS_JSON='{"skills":[]}'
+        fi
 
         # Extract skill names and convert to comma-separated string
         SKILLS=$(echo "$SKILLS_JSON" | jq -r '.skills[].name' 2>/dev/null | paste -sd',' -)
