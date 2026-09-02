@@ -1,14 +1,23 @@
 name: 'Install Skills'
-description: 'Install sx CLI and sync skills from Skills.new'
+description: 'Install sx CLI and sync skills from your sx vault (a git repository or Skills.new)'
 author: 'Sleuth'
 branding:
   icon: 'download-cloud'
   color: 'purple'
 
 inputs:
+  vault-url:
+    description: 'Git URL of the sx vault repository (e.g. git@github.com:your-org/ai-assets.git). Use this for git vaults.'
+    required: false
+  ssh-key:
+    description: 'Private SSH key with read access to the vault repository (typically a read-only deploy key stored as a secret). Required when vault-url is a private SSH remote.'
+    required: false
+  bot:
+    description: 'sx bot identity to install as (sets SX_BOT), so team- and bot-scoped assets resolve for this job. Optional.'
+    required: false
   api-key:
-    description: 'Skills.new API key'
-    required: true
+    description: 'Skills.new API key. Legacy: only used when vault-url is not set.'
+    required: false
   clients:
     description: 'LLM clients to install skills for (comma-separated, e.g., claude-code, cursor)'
     required: true
@@ -83,41 +92,56 @@ runs:
         fi
         echo "sx CLI installed ($(sx --version)) at $(which sx)"
 
-    - name: Configure sx for Skills.new
+    - name: Configure sx
       shell: bash
+      env:
+        VAULT_URL: ${{ inputs.vault-url }}
+        API_KEY: ${{ inputs.api-key }}
+        INPUT_CLIENTS: ${{ inputs.clients }}
       run: |
         CONFIG_FILE="$HOME/.config/sx/config.json"
         echo "Writing config to $CONFIG_FILE"
         mkdir -p $HOME/.config/sx
 
         # Convert comma-separated clients to JSON array
-        INPUT_CLIENTS="${{ inputs.clients }}"
         CLIENTS_JSON=$(echo "$INPUT_CLIENTS" | tr ',' '\n' | xargs -I{} echo '"{}"' | paste -sd',' | sed 's/^/[/' | sed 's/$/]/')
         echo "Enabling clients: $CLIENTS_JSON"
+
+        if [ -n "$VAULT_URL" ]; then
+          # Git vault. Authentication happens at sync time via SX_SSH_KEY
+          # (the ssh-key input) — nothing secret lands in this file.
+          PROFILE="\"type\": \"git\", \"repositoryUrl\": \"$VAULT_URL\""
+          echo "sx configured for git vault $VAULT_URL"
+        elif [ -n "$API_KEY" ]; then
+          PROFILE="\"type\": \"sleuth\", \"repositoryUrl\": \"https://app.skills.new\", \"authToken\": \"$API_KEY\""
+          echo "sx configured for Skills.new"
+        else
+          echo "Error: set vault-url (git vault) or api-key (Skills.new)"
+          exit 1
+        fi
 
         printf '%s\n' "{" \
           "  \"defaultProfile\": \"default\"," \
           "  \"profiles\": {" \
-          "    \"default\": {" \
-          "      \"type\": \"sleuth\"," \
-          "      \"repositoryUrl\": \"https://app.skills.new\"," \
-          "      \"authToken\": \"${{ inputs.api-key }}\"" \
-          "    }" \
+          "    \"default\": { $PROFILE }" \
           "  }," \
           "  \"forceEnabledClients\": $CLIENTS_JSON" \
           "}" > "$CONFIG_FILE"
-        if [ -f "$CONFIG_FILE" ]; then
-          echo "sx configured for Skills.new"
-        else
+        if [ ! -f "$CONFIG_FILE" ]; then
           echo "Error: Failed to write config file"
           exit 1
         fi
 
     - name: Sync skills
       shell: bash
+      env:
+        # Inline deploy key content; sx writes it to a 0600 temp file and
+        # passes it to git via GIT_SSH_COMMAND. Empty when not provided.
+        SX_SSH_KEY: ${{ inputs.ssh-key }}
+        SX_BOT: ${{ inputs.bot }}
       run: |
         export PATH="$HOME/.local/bin:$PATH"
-        echo "Syncing skills from Skills.new..."
+        echo "Syncing skills from the vault..."
         if ! sx install; then
           echo "Error: Failed to sync skills"
           exit 1
@@ -127,13 +151,22 @@ runs:
     - name: Discover installed skills
       id: discover-skills
       shell: bash
+      env:
+        # Listing a git vault reads the repository too, so the same
+        # credentials as the sync step apply here.
+        SX_SSH_KEY: ${{ inputs.ssh-key }}
+        SX_BOT: ${{ inputs.bot }}
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         echo "Discovering installed skills..."
 
         # Get list of installed skills as JSON object
         # Format: {"skills":[{"name":"skill-a","version":"1.0.0"},...]}}
-        SKILLS_JSON=$(sx vault list --type=skill --json 2>/dev/null || echo '{"skills":[]}')
+        if ! SKILLS_JSON=$(sx vault list --type=skill --json 2>/tmp/sx-vault-list.err); then
+          echo "sx vault list failed:"
+          cat /tmp/sx-vault-list.err
+          SKILLS_JSON='{"skills":[]}'
+        fi
 
         # Extract skill names and convert to comma-separated string
         SKILLS=$(echo "$SKILLS_JSON" | jq -r '.skills[].name' 2>/dev/null | paste -sd',' -)

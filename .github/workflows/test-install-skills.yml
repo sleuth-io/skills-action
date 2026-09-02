@@ -16,7 +16,9 @@ jobs:
         id: install
         uses: ./install-skills
         with:
-          api-key: ${{ secrets.SKILLS_API_KEY }}
+          vault-url: git@github.com:sleuth-io/ai-assets.git
+          ssh-key: ${{ secrets.SX_VAULT_SSH_KEY }}
+          bot: SX Bot
           clients: claude-code
 
       - name: Verify sx is installed
@@ -58,7 +60,8 @@ jobs:
         id: install
         uses: ./install-skills
         with:
-          api-key: ${{ secrets.SKILLS_API_KEY }}
+          vault-url: git@github.com:sleuth-io/ai-assets.git
+          ssh-key: ${{ secrets.SX_VAULT_SSH_KEY }}
           clients: claude-code,cursor
 
       - name: Verify skill files exist for Claude Code
